@@ -265,13 +265,27 @@ function load() {
   save(s); return s;
 }
 function save(s) { localStorage.setItem(LS_KEY, JSON.stringify(s || state)); }
+const DEFAULT_KEYS = {
+  td: 'f9d5acf736994dfb88a4acc4c75a1634',
+  fh: 'd9c3nfhr01qktgo5f3t0d9c3nfhr01qktgo5f3tg'
+};
 function loadKeys() {
-  try { return JSON.parse(localStorage.getItem(KEYS_KEY)) || {}; } catch (e) { return {}; }
+  let stored = {};
+  try { stored = JSON.parse(localStorage.getItem(KEYS_KEY)) || {}; } catch (e) {}
+  return { td: stored.td || DEFAULT_KEYS.td, fh: stored.fh || DEFAULT_KEYS.fh };
 }
 function saveKeys() {
   keys = { td: document.getElementById('key-td').value.trim(), fh: document.getElementById('key-fh').value.trim() };
-  localStorage.setItem(KEYS_KEY, JSON.stringify(keys));
+  if (!keys.td) { alert('Paste your Twelve Data key first — the site can\'t load prices without it.'); return; }
+  try {
+    localStorage.setItem(KEYS_KEY, JSON.stringify(keys));
+    const check = JSON.parse(localStorage.getItem(KEYS_KEY) || '{}');
+    if (check.td !== keys.td) throw new Error('verify failed');
+  } catch (e) {
+    alert('Your browser is blocking storage, so keys can\'t be remembered.\n\nCommon causes:\n• Private/Incognito window (storage is wiped when closed)\n• Safari with "Block all cookies" enabled\n• Opening the file directly instead of the live site\n\nThe keys WILL still work for this visit — they just won\'t survive a reload.');
+  }
   document.getElementById('keys-card').style.display = 'none';
+  setStatus('Keys saved (Twelve Data: …' + keys.td.slice(-4) + (keys.fh ? ', Finnhub: …' + keys.fh.slice(-4) : '') + ') — loading data…');
   refreshAll(true);
 }
 function toggleKeys() {
@@ -686,10 +700,11 @@ function render() {
 }
 
 document.getElementById('new-ticker').addEventListener('keydown', e => { if (e.key === 'Enter') addWatch(); });
+document.getElementById('key-td').addEventListener('keydown', e => { if (e.key === 'Enter') saveKeys(); });
+document.getElementById('key-fh').addEventListener('keydown', e => { if (e.key === 'Enter') saveKeys(); });
 render();
 renderFundamentals();
-if (!keys.td) { document.getElementById('keys-card').style.display = 'block'; setStatus('First-time setup: add your free Twelve Data API key below.', true); }
-else { refreshAll(false); }
+refreshAll(false);
 </script>
 </body>
 </html>
