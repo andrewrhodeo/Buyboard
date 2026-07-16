@@ -53,6 +53,9 @@
   tbody tr:hover { background: #fafbff; }
   tr:last-child td { border-bottom: none; }
   .tk { font-weight: 800; font-size: 15px; letter-spacing: -0.01em; }
+  .tk a { color: inherit; text-decoration: none; border-bottom: 1.5px dotted #c4cad6; transition: all .12s; }
+  .tk a:hover { color: var(--accent); border-bottom-color: var(--accent); }
+  .tk a::after { content: ' ↗'; font-size: 10px; color: var(--ink-3); font-weight: 600; }
   .num { text-align: right; font-variant-numeric: tabular-nums; }
   th.num { text-align: right; }
   .price { font-weight: 700; font-size: 14px; }
@@ -556,7 +559,7 @@ function renderFundamentals() {
     active.map(m => '<th class="num">' + m.h + '<span class="ideal-sub">' + m.i + '</span></th>').join('') + '</tr>';
   body.innerHTML = ranked.map(({ t, score }) => {
     const sCls = score == null ? 'mid' : (score >= 65 ? 'hi' : (score <= 35 ? 'lo' : 'mid'));
-    return '<tr><td class="sticky tk">' + esc(t) + '</td>' +
+    return '<tr><td class="sticky tk">' + tkLink(t) + '</td>' +
       '<td class="num"><span class="score ' + sCls + '">' + (score == null ? '–' : score) + '</span></td>' +
       active.map(m => {
         const v = fund[t][m.k];
@@ -639,13 +642,16 @@ function sigHtml(tk) {
   if (!s) return '<span class="muted">–</span>';
   return '<span class="sig ' + s.cls + '">' + s.overall + '</span>';
 }
+function tkLink(tk) {
+  return '<a href="https://finance.yahoo.com/quote/' + encodeURIComponent(tk) + '" target="_blank" rel="noopener" title="Open ' + esc(tk) + ' on Yahoo Finance">' + esc(tk) + '</a>';
+}
 function render() {
   const wlBody = document.getElementById('wl-body');
   document.getElementById('wl-count').textContent = state.watchlist.length;
   wlBody.innerHTML = state.watchlist.length ? state.watchlist.map(w => {
     const px = prices[w.ticker];
     return '<tr id="wl-' + esc(w.ticker) + '">' +
-      '<td class="tk">' + esc(w.ticker) + '</td>' +
+      '<td class="tk">' + tkLink(w.ticker) + '</td>' +
       '<td class="hide-sm">' + sparkline(w.ticker) + '</td>' +
       '<td class="num price">' + (px != null ? money(px) : '–') + '</td>' +
       '<td class="hide-sm">' + chipsHtml(w.ticker) + '</td>' +
@@ -670,7 +676,7 @@ function render() {
     const cls = pnl == null ? '' : (pnl >= 0 ? 'pos' : 'neg');
     const sign = pnl != null && pnl >= 0 ? '+' : '-';
     return '<tr>' +
-      '<td class="tk">' + esc(p.ticker) + '<div class="muted">' + esc(p.date || '') + '</div></td>' +
+      '<td class="tk">' + tkLink(p.ticker) + '<div class="muted">' + esc(p.date || '') + '</div></td>' +
       '<td class="num">' + fmt(p.qty, p.qty % 1 ? 4 : 0) + '</td>' +
       '<td class="num">' + money(p.entry) + '</td>' +
       '<td class="num hide-sm">' + money(cost) + '</td>' +
