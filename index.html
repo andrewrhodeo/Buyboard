@@ -108,6 +108,18 @@
   .sig-sell     { background: var(--red-bg); color: var(--red); }
   .sig-hardsell { background: linear-gradient(135deg, #cf3327, #e04b32); color: #fff; box-shadow: 0 2px 8px rgba(207,51,39,.35); }
   .spark { display: block; }
+  #fu-table th.sticky, #fu-table td.sticky { position: sticky; left: 0; background: var(--card); z-index: 2; }
+  #fu-table tbody tr:hover td.sticky { background: #fafbff; }
+  #fu-table th { white-space: nowrap; }
+  #fu-table td { padding: 9px 10px; font-size: 13px; }
+  .ideal-sub { display: block; font-size: 9.5px; color: var(--ink-3); font-weight: 600; text-transform: none; letter-spacing: 0; margin-top: 1px; }
+  .score {
+    display: inline-block; min-width: 38px; text-align: center; font-weight: 800;
+    padding: 3px 8px; border-radius: 8px; font-variant-numeric: tabular-nums;
+  }
+  .score.hi { background: var(--green-bg); color: var(--green); }
+  .score.lo { background: var(--red-bg); color: var(--red); }
+  .score.mid { background: #f0f1f6; color: var(--ink-2); }
   .keys { background: #fffbeb; border: 1px solid #fde68a; }
   .keys .krow { display: flex; gap: 10px; flex-wrap: wrap; align-items: flex-end; margin-top: 10px; }
   .keys .fld { display: flex; flex-direction: column; gap: 4px; }
@@ -189,7 +201,7 @@
         <tbody id="fu-body"></tbody>
       </table>
     </div>
-    <div class="footnote">Green = in the ideal zone, red = well outside it, grey = in between or n/a. Requires a Finnhub key (🔑 API keys above). Speculative growth names will run red on earnings metrics — that's the trade-off: you're paying for future growth, not current profits.</div>
+    <div class="footnote">Ranked by Score: 100 = every metric in the ideal zone, 0 = every metric red (equal-weighted across available metrics). Green = ideal, red = well outside, grey = in between or n/a. Requires a Finnhub key (🔑 API keys above). Speculative growth names score low on earnings metrics by nature — that's the trade-off: you're paying for future growth, not current profits. A low score isn't "don't buy," it means "this is a story bet, size it accordingly."</div>
   </div>
 
   <div class="card">
@@ -469,30 +481,42 @@ async function fetchFundamentals() {
   renderFundamentals();
 }
 
-const METRICS = [
-  { l: 'EPS (ttm)', i: '> $0', f: t => fund[t].eps != null ? '$' + fmt(fund[t].eps) : '–',
-    g: t => fund[t].eps == null ? '' : (fund[t].eps > 0 ? 'pos' : 'neg') },
-  { l: 'EPS growth YoY', i: '≥ +15%', f: t => fund[t].epsGrowth != null ? fmt(fund[t].epsGrowth, 1) + '%' : '–',
-    g: t => { const v = fund[t].epsGrowth; if (v == null) return ''; return v >= 15 ? 'pos' : (v < 0 ? 'neg' : ''); } },
-  { l: 'P/E', i: '15–25', f: t => fund[t].pe != null ? fmt(fund[t].pe, 1) : 'n/m',
-    g: t => { const v = fund[t].pe; if (v == null) return ''; return (v > 0 && v <= 25) ? 'pos' : (v > 40 || v < 0 ? 'neg' : ''); } },
-  { l: 'PEG', i: '0–1', f: t => fund[t].peg != null ? fmt(fund[t].peg, 2) : '–',
-    g: t => { const v = fund[t].peg; if (v == null) return ''; return v > 0 && v < 1 ? 'pos' : (v > 2 || v < 0 ? 'neg' : ''); } },
-  { l: 'P/S', i: '0–10', f: t => fund[t].ps != null ? fmt(fund[t].ps, 1) + 'x' : '–',
-    g: t => { const v = fund[t].ps; if (v == null) return ''; return v < 10 ? 'pos' : (v > 20 ? 'neg' : ''); } },
-  { l: 'EV/Sales', i: '0–10', f: t => fund[t].evs != null ? fmt(fund[t].evs, 1) + 'x' : '–',
-    g: t => { const v = fund[t].evs; if (v == null) return ''; return v < 10 ? 'pos' : (v > 20 ? 'neg' : ''); } },
-  { l: 'P/B', i: '1–3', f: t => fund[t].pb != null ? fmt(fund[t].pb, 1) + 'x' : '–',
-    g: t => { const v = fund[t].pb; if (v == null) return ''; return v < 3 ? 'pos' : (v > 10 ? 'neg' : ''); } },
-  { l: 'Profit margin', i: '≥ 10%', f: t => fund[t].pm != null ? fmt(fund[t].pm, 1) + '%' : '–',
-    g: t => { const v = fund[t].pm; if (v == null) return ''; return v > 10 ? 'pos' : (v < 0 ? 'neg' : ''); } },
-  { l: 'ROE', i: '15–25%', f: t => fund[t].roe != null ? fmt(fund[t].roe, 1) + '%' : '–',
-    g: t => { const v = fund[t].roe; if (v == null) return ''; return v > 15 ? 'pos' : (v < 0 ? 'neg' : ''); } },
-  { l: 'Beta', i: '0.8–1.2', f: t => fund[t].beta != null ? fmt(fund[t].beta, 2) : '–',
-    g: t => { const v = fund[t].beta; if (v == null) return ''; return (v >= 0.7 && v <= 1.3) ? 'pos' : (v > 2.5 ? 'neg' : ''); } },
-  { l: 'Off 52-wk high', i: '0% to −15%', f: t => fund[t].offHigh != null ? fmt(fund[t].offHigh, 0) + '%' : '–',
-    g: t => { const v = fund[t].offHigh; if (v == null) return ''; return v >= -15 ? 'pos' : (v <= -50 ? 'neg' : ''); } }
+// Display clamps so one absurd number doesn't wreck the table
+function clampX(v) { if (v == null) return '–'; if (v > 999) return '999+x'; if (v < -999) return '<-999x'; return fmt(v, 1) + 'x'; }
+function clampPct(v) { if (v == null) return '–'; if (v > 999) return '999%+'; if (v < -100) return '<-100%'; return fmt(v, 1) + '%'; }
+
+// grade: 1 = ideal (green), 0.5 = in between (grey), 0 = bad (red), null = no data
+const FMETRICS = [
+  { k: 'eps',       h: 'EPS',      i: '> $0',      f: v => v == null ? '–' : '$' + fmt(v),
+    g: v => v == null ? null : (v > 0 ? 1 : 0) },
+  { k: 'epsGrowth', h: 'EPS Δyr',  i: '≥ +15%',    f: clampPct,
+    g: v => v == null ? null : (v >= 15 ? 1 : (v < 0 ? 0 : 0.5)) },
+  { k: 'pe',        h: 'P/E',      i: '15–25',     f: v => v == null ? 'n/m' : fmt(v, 1),
+    g: v => v == null ? null : ((v > 0 && v <= 25) ? 1 : (v > 40 || v < 0 ? 0 : 0.5)) },
+  { k: 'peg',       h: 'PEG',      i: '0–1',       f: v => v == null ? '–' : fmt(v, 2),
+    g: v => v == null ? null : ((v > 0 && v < 1) ? 1 : (v > 2 || v < 0 ? 0 : 0.5)) },
+  { k: 'ps',        h: 'P/S',      i: '0–10',      f: clampX,
+    g: v => v == null ? null : (v < 10 ? 1 : (v > 20 ? 0 : 0.5)) },
+  { k: 'pb',        h: 'P/B',      i: '1–3',       f: clampX,
+    g: v => v == null ? null : (v < 3 ? 1 : (v > 10 ? 0 : 0.5)) },
+  { k: 'pm',        h: 'Margin',   i: '≥ 10%',     f: clampPct,
+    g: v => v == null ? null : (v > 10 ? 1 : (v < 0 ? 0 : 0.5)) },
+  { k: 'roe',       h: 'ROE',      i: '15–25%',    f: clampPct,
+    g: v => v == null ? null : (v > 15 ? 1 : (v < 0 ? 0 : 0.5)) },
+  { k: 'beta',      h: 'Beta',     i: '0.8–1.2',   f: v => v == null ? '–' : fmt(v, 2),
+    g: v => v == null ? null : ((v >= 0.7 && v <= 1.3) ? 1 : (v > 2.5 ? 0 : 0.5)) },
+  { k: 'offHigh',   h: 'Off high', i: '0 to −15%', f: v => v == null ? '–' : fmt(v, 0) + '%',
+    g: v => v == null ? null : (v >= -15 ? 1 : (v <= -50 ? 0 : 0.5)) }
 ];
+
+function tickerScore(t) {
+  let sum = 0, n = 0;
+  for (const m of FMETRICS) {
+    const g = m.g(fund[t][m.k]);
+    if (g != null) { sum += g; n++; }
+  }
+  return n >= 4 ? Math.round((sum / n) * 100) : null;
+}
 
 function renderFundamentals() {
   const tickers = allTickers().filter(t => fund[t]);
@@ -509,16 +533,24 @@ function renderFundamentals() {
     body.innerHTML = '<tr><td class="empty">Loading fundamentals…</td></tr>';
     return;
   }
-  head.innerHTML = '<tr><th style="width:150px">Metric</th><th style="width:100px">Ideal</th>' +
-    tickers.map(t => '<th class="num">' + esc(t) + '</th>').join('') + '</tr>';
-  body.innerHTML = METRICS.map(m =>
-    '<tr><td><strong>' + m.l + '</strong></td><td class="muted">' + m.i + '</td>' +
-    tickers.map(t => {
-      let val = '–', cls = '';
-      try { val = m.f(t); cls = m.g(t) || ''; } catch (e) {}
-      return '<td class="num ' + cls + '">' + val + '</td>';
-    }).join('') + '</tr>'
-  ).join('');
+  // hide metrics with no data for any ticker (e.g. provider doesn't supply them)
+  const active = FMETRICS.filter(m => tickers.some(t => fund[t][m.k] != null));
+  // rank by composite score, best first; no-score tickers sink to the bottom
+  const ranked = tickers.map(t => ({ t, score: tickerScore(t) }))
+    .sort((a, b) => (b.score ?? -1) - (a.score ?? -1));
+  head.innerHTML = '<tr><th class="sticky">Ticker</th><th class="num">Score</th>' +
+    active.map(m => '<th class="num">' + m.h + '<span class="ideal-sub">' + m.i + '</span></th>').join('') + '</tr>';
+  body.innerHTML = ranked.map(({ t, score }) => {
+    const sCls = score == null ? 'mid' : (score >= 65 ? 'hi' : (score <= 35 ? 'lo' : 'mid'));
+    return '<tr><td class="sticky tk">' + esc(t) + '</td>' +
+      '<td class="num"><span class="score ' + sCls + '">' + (score == null ? '–' : score) + '</span></td>' +
+      active.map(m => {
+        const v = fund[t][m.k];
+        const g = m.g(v);
+        const cls = g === 1 ? 'pos' : (g === 0 ? 'neg' : '');
+        return '<td class="num ' + cls + '">' + m.f(v) + '</td>';
+      }).join('') + '</tr>';
+  }).join('');
 }
 
 // ---------- watchlist / positions (same as before) ----------
